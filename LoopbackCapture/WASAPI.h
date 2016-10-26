@@ -59,6 +59,7 @@ private:
 
     static DWORD __stdcall WASAPICaptureThread(LPVOID Context);
     DWORD CWASAPICapture::DoCaptureThread();
+
     //
     //  Stream switch related members and methods.
     //

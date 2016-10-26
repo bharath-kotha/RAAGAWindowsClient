@@ -16,6 +16,8 @@
 
 #include <functiondiscoverykeys.h>
 #include "WASAPI.h"
+#include <chrono>
+#include <iostream>
 
 #include "CmdLine.h"
 
@@ -29,6 +31,10 @@ bool UseMultimediaDevice;
 bool DisableMMCSS;
 
 wchar_t *OutputEndpoint;
+
+CWASAPICapture *capturer;
+BYTE *captureBuffer;
+BYTE *captureBuffer1;
 
 CommandLineSwitch CmdLineArgs[] = 
 {
@@ -419,6 +425,11 @@ void SaveWaveData(BYTE *CaptureBuffer, size_t BufferSize, const WAVEFORMATEX *Wa
     }
 }
 
+
+void writeFileThread()
+{
+	SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+}
 //
 //  The core of the sample.
 //
@@ -465,7 +476,7 @@ int wmain(int argc, wchar_t* argv[])
     //  Configure the capturer to enable stream switching on the specified role if the user specified one of the default devices.
     //
     {
-        CWASAPICapture *capturer = new (std::nothrow) CWASAPICapture(device, false, role);
+        capturer = new (std::nothrow) CWASAPICapture(device, false, role);
         if (capturer == NULL)
         {
             printf("Unable to allocate capturer\n");
@@ -483,7 +494,8 @@ int wmain(int argc, wchar_t* argv[])
             //  we're going to have TargetDuration*samples/second frames multiplied by the frame size.
             //
             size_t captureBufferSize = capturer->SamplesPerSecond() * TargetDurationInSec * capturer->FrameSize();
-            BYTE *captureBuffer = new (std::nothrow) BYTE[captureBufferSize];
+            captureBuffer = new (std::nothrow) BYTE[captureBufferSize];
+			captureBuffer1 = new (std::nothrow) BYTE[captureBufferSize];
 
             if (captureBuffer == NULL)
             {
@@ -493,30 +505,47 @@ int wmain(int argc, wchar_t* argv[])
 
 			if (capturer->Begin())
 			{
-				printf("Begin successful\n");
+				//printf("Begin successful\n");
 				if (capturer->Start(captureBuffer, captureBufferSize))
 				{
+					//auto start = std::chrono::high_resolution_clock::now();
+					//std::cout << "Capture start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
 					do
 					{
-						printf(".");
-						Sleep(1000);
+						//printf(".");
+						Sleep(1);
 					} while (!capturer->hasCaptured());
+					//start = std::chrono::high_resolution_clock::now();
+					//std::cout << "Capture end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
 					printf("\n");
 
+					//start = std::chrono::high_resolution_clock::now();
+					//std::cout << "stop() start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
 					capturer->Stop();
+					//auto end = std::chrono::high_resolution_clock::now();
+					//std::cout << "stop() end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch()).count() << std::endl;
+					//std::cout << "Time taken to stop the capturer: " ;
+					//std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "ns" <<std::endl;
+
 
 					//
 					//  We've now captured our wave data.  Now write it out in a wave file.
 					//
-					SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+					//SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
 				}
-				if (capturer->Start(captureBuffer, captureBufferSize))
+				if (capturer->Start(captureBuffer1, captureBufferSize))
 				{
+					//auto end = std::chrono::high_resolution_clock::now();
+					//std::cout << "end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch()).count() << std::endl;
+					//auto start = std::chrono::high_resolution_clock::now();
+					//std::cout << "Capture start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
 					do
 					{
-						printf(".");
-						Sleep(1000);
+						//printf(".");
+						Sleep(1);
 					} while (!capturer->hasCaptured());
+					//start = std::chrono::high_resolution_clock::now();
+					//std::cout << "Capture end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
 					printf("\n");
 
 					capturer->Stop();
@@ -524,6 +553,7 @@ int wmain(int argc, wchar_t* argv[])
 					//
 					//  We've now captured our wave data.  Now write it out in a wave file.
 					//
+					SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
 					SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
 				}
 				//

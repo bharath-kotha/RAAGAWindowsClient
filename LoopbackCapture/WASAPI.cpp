@@ -9,6 +9,8 @@
 #include <assert.h>
 #include <avrt.h>
 #include "WASAPI.h"
+#include <chrono>
+#include <iostream>
 
 //
 //  A simple WASAPI Capture client.
@@ -240,12 +242,18 @@ bool CWASAPICapture::Start(BYTE *CaptureBuffer, size_t CaptureBufferSize)
     //
     //  Now create the thread which is going to drive the capture.
     //
+	//auto start = std::chrono::high_resolution_clock::now();
     _CaptureThread = CreateThread(NULL, 0, WASAPICaptureThread, this, 0, NULL);
     if (_CaptureThread == NULL)
     {
         printf("Unable to create transport thread: %x.", GetLastError());
         return false;
     }
+
+	//auto finish = std::chrono::high_resolution_clock::now();
+	//std::cout << "Time taken to creat handle: ";
+
+	//std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() << "ns" << std::endl;
 
     //
     //  We're ready to go, start capturing!
@@ -270,8 +278,6 @@ void CWASAPICapture::Stop()
         SetEvent(_ShutdownEvent);
     }*/
 
-    
-
     if (_CaptureThread)
     {
         WaitForSingleObject(_CaptureThread, INFINITE);
@@ -279,6 +285,7 @@ void CWASAPICapture::Stop()
         CloseHandle(_CaptureThread);
         _CaptureThread = NULL;
     }
+
 }
 
 void CWASAPICapture::Destroy()
@@ -324,6 +331,8 @@ DWORD CWASAPICapture::DoCaptureThread()
             printf("Unable to enable MMCSS on capture thread: %d\n", GetLastError());
         }
     }
+	//auto start = std::chrono::high_resolution_clock::now();
+	//std::cout << "Start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
     while (stillPlaying)
     {
         HRESULT hr;
@@ -425,6 +434,8 @@ DWORD CWASAPICapture::DoCaptureThread()
             break;
         }
     }
+	//auto end = std::chrono::high_resolution_clock::now();
+	//std::cout << "end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch()).count() << std::endl;
     if (!DisableMMCSS)
     {
         AvRevertMmThreadCharacteristics(mmcssHandle);
