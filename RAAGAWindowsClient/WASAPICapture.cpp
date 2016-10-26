@@ -12,6 +12,13 @@
 //  This application captures data from the specified input device and writes it to a uniquely named .WAV file in the current directory.
 //
 
+#pragma comment(lib,"ws2_32")
+
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
+#include <WinSock2.h>
+#include "WaveFileRead.h"
+
 #include "stdafx.h"
 
 #include <functiondiscoverykeys.h>
@@ -431,6 +438,13 @@ void writeFileThread(BYTE ** cbuffer, size_t bytesCaptured, WAVEFORMATEX * mixFo
 {
 	SaveWaveData(*cbuffer, bytesCaptured, mixFormat);
 }
+
+char sendBuffer[4800];
+SOCKET conn;
+void sendDataToServer(SOCKET * connection, char ** sBuffer, int len)
+{
+	send(*connection, *sBuffer, len, NULL);
+}
 //
 //  The core of the sample.
 //
@@ -444,6 +458,48 @@ int wmain(int argc, wchar_t* argv[])
 	bool isDefaultDevice;
 	ERole role;
 
+	char * filename = "sample1.WAV";
+	char * buffer = NULL;
+
+	WSAData wsaData;
+	WORD DllVersion = MAKEWORD(2, 1);
+
+	if (WSAStartup(DllVersion, &wsaData) != 0)		// If WSAStartup returns anything other than 0, then that means an error has occured
+	{
+		printf("Error occured in initializing WSA");
+		exit(1);
+	}
+
+	SOCKADDR_IN addr;				// Address that we will bind our listening socket to
+	int addrlen = sizeof(addr);	// length of the address (required for accept call
+	addr.sin_addr.s_addr = inet_addr("192.168.0.108");		// Address = localhost (this pc)
+	addr.sin_port = htons(1111);		// Port
+	addr.sin_family = AF_INET;		// IPv4 socket
+
+	conn = socket(AF_INET, SOCK_STREAM, NULL);
+	if (connect(conn, (SOCKADDR *)&addr, addrlen) != 0)
+	{
+		cout << "Failed to connect to server" << endl;
+		perror("Failed to connect to server: ");
+		system("pause");
+		exit(1);
+	}
+	
+
+	//ReadWaveFile file(filename);
+	//file.readFile();
+	//int frames = file.getData(&buffer);
+
+	cout << "Connected" << endl;
+	//recv(conn, MOTD, sizeof(MOTD), NULL);			// Receive message of the day buffer into MOTD array
+	//cout << sizeof(buffer) << endl;
+	//cout << "total_data_size_frames" << frames << endl;
+
+	//for (int i = 0; i < (frames / 600); i++)
+	{
+		//memcpy(sendBuffer, buffer + (i * sizeof(sendBuffer)), sizeof(sendBuffer));
+		//send(conn, sendBuffer, sizeof(sendBuffer), NULL);
+	}
 	printf("WASAPI Capture Shared Timer Driven Sample\n");
 	printf("Copyright (c) Microsoft.  All Rights Reserved\n");
 	printf("\n");
@@ -514,7 +570,9 @@ int wmain(int argc, wchar_t* argv[])
 						{
 							if (i > 0)
 							{
-								std::thread t1(writeFileThread, &captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
+								//std::thread t1(writeFileThread, &captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
+								//void sendDataToServer(SOCKET * connection, char ** sBuffer, int len)
+								std::thread t1(sendDataToServer, &conn, (char **)&captureBuffer1,(int) capturer->BytesCaptured());
 								t1.join();
 							}
 							do
@@ -533,7 +591,8 @@ int wmain(int argc, wchar_t* argv[])
 						{
 							if (i > 0)
 							{
-								std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+								//std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+								std::thread t1(sendDataToServer,&conn, (char **)&captureBuffer,(int) capturer->BytesCaptured());
 								t1.join();
 							}
 							do
@@ -546,7 +605,8 @@ int wmain(int argc, wchar_t* argv[])
 						}
 					}
 				}
-				std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+				//std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+				std::thread t1(sendDataToServer, &conn, (char **)&captureBuffer,(int) capturer->BytesCaptured());
 				t1.join();
 
 
