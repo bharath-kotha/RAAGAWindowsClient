@@ -17,6 +17,7 @@
 #include <functiondiscoverykeys.h>
 #include "WASAPI.h"
 #include <chrono>
+#include <thread>
 #include <iostream>
 
 #include "CmdLine.h"
@@ -426,9 +427,9 @@ void SaveWaveData(BYTE *CaptureBuffer, size_t BufferSize, const WAVEFORMATEX *Wa
 }
 
 
-void writeFileThread()
+void writeFileThread(BYTE ** cbuffer, size_t bytesCaptured, WAVEFORMATEX * mixFormat)
 {
-	SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+	SaveWaveData(*cbuffer, bytesCaptured, mixFormat);
 }
 //
 //  The core of the sample.
@@ -539,6 +540,8 @@ int wmain(int argc, wchar_t* argv[])
 					//std::cout << "end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch()).count() << std::endl;
 					//auto start = std::chrono::high_resolution_clock::now();
 					//std::cout << "Capture start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
+					std::thread t1(writeFileThread,&captureBuffer,capturer->BytesCaptured(),capturer->MixFormat());
+					t1.join();
 					do
 					{
 						//printf(".");
@@ -553,8 +556,8 @@ int wmain(int argc, wchar_t* argv[])
 					//
 					//  We've now captured our wave data.  Now write it out in a wave file.
 					//
+					//SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
 					SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
-					SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
 				}
 				//
 				//  Now shut down the capturer and release it we're done.

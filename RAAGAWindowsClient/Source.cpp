@@ -28,7 +28,7 @@ int main()
 
 	SOCKADDR_IN addr;				// Address that we will bind our listening socket to
 	int addrlen = sizeof(addr);	// length of the address (required for accept call
-	addr.sin_addr.s_addr = inet_addr("10.129.26.100");		// Address = localhost (this pc)
+	addr.sin_addr.s_addr = inet_addr("192.168.0.108");		// Address = localhost (this pc)
 	addr.sin_port = htons(1111);		// Port
 	addr.sin_family = AF_INET;		// IPv4 socket
 
@@ -48,11 +48,11 @@ int main()
 
 	cout << "Connected" << endl;
 	//recv(conn, MOTD, sizeof(MOTD), NULL);			// Receive message of the day buffer into MOTD array
-	char sendBuffer[960];
+	char sendBuffer[4800];
 	cout << sizeof(buffer) << endl;
 	cout << "total_data_size_frames" << frames << endl;
 
-	for (int i = 0; i < (frames/120); i++)
+	for (int i = 0; i < (frames/600); i++)
 	{
 		memcpy(sendBuffer, buffer + (i * sizeof(sendBuffer)), sizeof(sendBuffer));
 		send(conn, sendBuffer, sizeof(sendBuffer), NULL);
