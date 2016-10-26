@@ -507,33 +507,50 @@ int wmain(int argc, wchar_t* argv[])
 			if (capturer->Begin())
 			{
 				//printf("Begin successful\n");
-				if (capturer->Start(captureBuffer, captureBufferSize))
+				for (int i = 0; i < 5; i++)
 				{
-					//auto start = std::chrono::high_resolution_clock::now();
-					//std::cout << "Capture start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
-					do
+					if (i % 2 == 0) {
+						if (capturer->Start(captureBuffer, captureBufferSize))
+						{
+							if (i > 0)
+							{
+								std::thread t1(writeFileThread, &captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
+								t1.join();
+							}
+							do
+							{
+								//printf(".");
+								Sleep(1);
+							} while (!capturer->hasCaptured());
+							printf("\n");
+							capturer->Stop();
+						}
+
+					}
+					else
 					{
-						//printf(".");
-						Sleep(1);
-					} while (!capturer->hasCaptured());
-					//start = std::chrono::high_resolution_clock::now();
-					//std::cout << "Capture end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
-					printf("\n");
-
-					//start = std::chrono::high_resolution_clock::now();
-					//std::cout << "stop() start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
-					capturer->Stop();
-					//auto end = std::chrono::high_resolution_clock::now();
-					//std::cout << "stop() end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch()).count() << std::endl;
-					//std::cout << "Time taken to stop the capturer: " ;
-					//std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() << "ns" <<std::endl;
-
-
-					//
-					//  We've now captured our wave data.  Now write it out in a wave file.
-					//
-					//SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+						if (capturer->Start(captureBuffer1, captureBufferSize))
+						{
+							if (i > 0)
+							{
+								std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+								t1.join();
+							}
+							do
+							{
+								//printf(".");
+								Sleep(1);
+							} while (!capturer->hasCaptured());
+							printf("\n");
+							capturer->Stop();
+						}
+					}
 				}
+				std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+				t1.join();
+
+
+				/*
 				if (capturer->Start(captureBuffer1, captureBufferSize))
 				{
 					//auto end = std::chrono::high_resolution_clock::now();
@@ -559,6 +576,7 @@ int wmain(int argc, wchar_t* argv[])
 					//SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
 					SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
 				}
+				*/
 				//
 				//  Now shut down the capturer and release it we're done.
 				//
