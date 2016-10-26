@@ -29,7 +29,8 @@ CWASAPICapture::CWASAPICapture(IMMDevice *Endpoint, bool EnableStreamSwitch, ERo
     _StreamSwitchCompleteEvent(NULL),
     _AudioSessionControl(NULL),
     _DeviceEnumerator(NULL),
-    _InStreamSwitch(false)
+    _InStreamSwitch(false),
+	_DoneCapturing(false)
 {
     _Endpoint->AddRef();    // Since we're holding a copy of the endpoint, take a reference to it.  It'll be released in Shutdown();
 }
@@ -208,6 +209,22 @@ void CWASAPICapture::Shutdown()
     }
 }
 
+//
+//  Start Capturing
+//
+bool CWASAPICapture::Begin(void)
+{
+	HRESULT hr;
+
+	hr = _AudioClient->Start();
+	if (FAILED(hr))
+	{
+		printf("Unable to start capture client: %x.\n", hr);
+		return false;
+	}
+	return true;
+}
+
 
 //
 //  Start capturing...
@@ -218,6 +235,7 @@ bool CWASAPICapture::Start(BYTE *CaptureBuffer, size_t CaptureBufferSize)
 
     _CaptureBuffer = CaptureBuffer;
     _CaptureBufferSize = CaptureBufferSize;
+	_DoneCapturing = false;
 
     //
     //  Now create the thread which is going to drive the capture.
@@ -232,12 +250,6 @@ bool CWASAPICapture::Start(BYTE *CaptureBuffer, size_t CaptureBufferSize)
     //
     //  We're ready to go, start capturing!
     //
-    hr = _AudioClient->Start();
-    if (FAILED(hr))
-    {
-        printf("Unable to start capture client: %x.\n", hr);
-        return false;
-    }
 
     return true;
 }
@@ -253,16 +265,12 @@ void CWASAPICapture::Stop()
     //  Tell the capture thread to shut down, wait for the thread to complete then clean up all the stuff we 
     //  allocated in Start().
     //
-    if (_ShutdownEvent)
+    /*if (_ShutdownEvent)
     {
         SetEvent(_ShutdownEvent);
-    }
+    }*/
 
-    hr = _AudioClient->Stop();
-    if (FAILED(hr))
-    {
-        printf("Unable to stop audio client: %x\n", hr);
-    }
+    
 
     if (_CaptureThread)
     {
@@ -273,6 +281,15 @@ void CWASAPICapture::Stop()
     }
 }
 
+void CWASAPICapture::Destroy()
+{
+	HRESULT hr;
+	hr = _AudioClient->Stop();
+	if (FAILED(hr))
+	{
+		printf("Unable to stop audio client: %x\n", hr);
+	}
+}
 
 //
 //  Capture thread - processes samples from the audio engine
@@ -289,6 +306,8 @@ DWORD CWASAPICapture::DoCaptureThread()
     HANDLE waitArray[2] = {_ShutdownEvent, _StreamSwitchEvent};
     HANDLE mmcssHandle = NULL;
     DWORD mmcssTaskIndex = 0;
+	_CurrentCaptureIndex = 0;
+	_DoneCapturing = false;
 
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (FAILED(hr))
@@ -319,6 +338,7 @@ DWORD CWASAPICapture::DoCaptureThread()
         {
         case WAIT_OBJECT_0 + 0:     // _ShutdownEvent
             stillPlaying = false;       // We're done, exit the loop.
+			_DoneCapturing = true;
             break;
         case WAIT_OBJECT_0 + 1:     // _StreamSwitchEvent
             //
@@ -374,12 +394,33 @@ DWORD CWASAPICapture::DoCaptureThread()
                     //  Bump the capture buffer pointer.
                     //
                     _CurrentCaptureIndex += framesToCopy*_FrameSize;
+					hr = _CaptureClient->ReleaseBuffer(framesToCopy);
+					if (FAILED(hr))
+					{
+						printf("Unable to release capture buffer: %x!\n", hr);
+					}
                 }
-                hr = _CaptureClient->ReleaseBuffer(framesAvailable);
-                if (FAILED(hr))
-                {
-                    printf("Unable to release capture buffer: %x!\n", hr);
-                }
+				else if( (_CaptureBufferSize - _CurrentCaptureIndex)==0)
+				{
+					if (_ShutdownEvent)
+					{
+						SetEvent(_ShutdownEvent);
+					}
+					hr = _CaptureClient->ReleaseBuffer(0);
+					if (FAILED(hr))
+					{
+						printf("Unable to release capture buffer: %x!\n", hr);
+					}
+				}
+				else
+				{
+					hr = _CaptureClient->ReleaseBuffer(0);
+					if (FAILED(hr))
+					{
+						printf("Unable to release capture buffer: %x!\n", hr);
+					}
+				}
+                
             }
             break;
         }

@@ -19,14 +19,17 @@ public:
     CWASAPICapture(IMMDevice *Endpoint, bool EnableStreamSwitch, ERole EndpointRole);
     bool Initialize(UINT32 EngineLatency);
     void Shutdown();
+	bool Begin();
     bool Start(BYTE *CaptureBuffer, size_t BufferSize);
     void Stop();
+	void Destroy();
     WORD ChannelCount() { return _MixFormat->nChannels; }
     UINT32 SamplesPerSecond() { return _MixFormat->nSamplesPerSec; }
     UINT32 BytesPerSample() { return _MixFormat->wBitsPerSample / 8; }
     size_t FrameSize() { return _FrameSize; }
     WAVEFORMATEX *MixFormat() { return _MixFormat; }
     size_t BytesCaptured() { return _CurrentCaptureIndex; }
+	bool hasCaptured() { return _DoneCapturing; }
     STDMETHOD_(ULONG, AddRef)();
     STDMETHOD_(ULONG, Release)();
 
@@ -52,6 +55,7 @@ private:
     BYTE *_CaptureBuffer;
     size_t _CaptureBufferSize;
     size_t _CurrentCaptureIndex;
+	bool _DoneCapturing;
 
     static DWORD __stdcall WASAPICaptureThread(LPVOID Context);
     DWORD CWASAPICapture::DoCaptureThread();

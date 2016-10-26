@@ -21,7 +21,7 @@
 
 
 int TargetLatency = 20;
-int TargetDurationInSec = 60;
+int TargetDurationInSec = 5;
 bool ShowHelp;
 bool UseConsoleDevice;
 bool UseCommunicationsDevice;
@@ -436,34 +436,6 @@ int wmain(int argc, wchar_t* argv[])
     printf("Copyright (c) Microsoft.  All Rights Reserved\n");
     printf("\n");
 
-    if (!ParseCommandLine(argc, argv, CmdLineArgs, CmdLineArgLength))
-    {
-        result = -1;
-        goto Exit;
-    }
-    //
-    //  Now that we've parsed our command line, do some semantic checks.
-    //
-
-    //
-    //  First off, show the help for the app if the user asked for it.
-    //
-    if (ShowHelp)
-    {
-        Help(argv[0]);
-        goto Exit;
-    }
-
-    //
-    //  The user can only specify one of -console, -communications or -multimedia or a specific endpoint.
-    //
-    if (((UseConsoleDevice != 0) + (UseCommunicationsDevice != 0) + (UseMultimediaDevice != 0) + (OutputEndpoint != NULL)) > 1)
-    {
-        printf("Can only specify one of -Console, -Communications or -Multimedia\n");
-        result = -1;
-        goto Exit;
-    }
-
 
     //
     //  A GUI application should use COINIT_APARTMENTTHREADED instead of COINIT_MULTITHREADED.
@@ -493,7 +465,7 @@ int wmain(int argc, wchar_t* argv[])
     //  Configure the capturer to enable stream switching on the specified role if the user specified one of the default devices.
     //
     {
-        CWASAPICapture *capturer = new (std::nothrow) CWASAPICapture(device, isDefaultDevice, role);
+        CWASAPICapture *capturer = new (std::nothrow) CWASAPICapture(device, false, role);
         if (capturer == NULL)
         {
             printf("Unable to allocate capturer\n");
@@ -519,29 +491,48 @@ int wmain(int argc, wchar_t* argv[])
                 return -1;
             }
 
-            if (capturer->Start(captureBuffer, captureBufferSize))
-            {
-                do
-                {
-                    printf(".");
-                    Sleep(1000);
-                } while (--TargetDurationInSec);
-                printf("\n");
+			if (capturer->Begin())
+			{
+				printf("Begin successful\n");
+				if (capturer->Start(captureBuffer, captureBufferSize))
+				{
+					do
+					{
+						printf(".");
+						Sleep(1000);
+					} while (!capturer->hasCaptured());
+					printf("\n");
 
-                capturer->Stop();
+					capturer->Stop();
 
-                //
-                //  We've now captured our wave data.  Now write it out in a wave file.
-                //
-                SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+					//
+					//  We've now captured our wave data.  Now write it out in a wave file.
+					//
+					SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+				}
+				if (capturer->Start(captureBuffer, captureBufferSize))
+				{
+					do
+					{
+						printf(".");
+						Sleep(1000);
+					} while (!capturer->hasCaptured());
+					printf("\n");
 
+					capturer->Stop();
 
-                //
-                //  Now shut down the capturer and release it we're done.
-                //
-                capturer->Shutdown();
-                SafeRelease(&capturer);
-            }
+					//
+					//  We've now captured our wave data.  Now write it out in a wave file.
+					//
+					SaveWaveData(captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
+				}
+				//
+				//  Now shut down the capturer and release it we're done.
+				//
+				capturer->Destroy();
+				capturer->Shutdown();
+				SafeRelease(&capturer);
+			}
 
             delete []captureBuffer;
         }
@@ -550,5 +541,6 @@ int wmain(int argc, wchar_t* argv[])
 Exit:
     SafeRelease(&device);
     CoUninitialize();
+	system("pause");
     return 0;
 }
