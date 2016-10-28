@@ -31,7 +31,7 @@
 
 
 int TargetLatency = 20;
-int TargetDurationInSec = 5;
+int TargetDurationInSec = 1;
 bool ShowHelp;
 bool UseConsoleDevice;
 bool UseCommunicationsDevice;
@@ -472,7 +472,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	SOCKADDR_IN addr;				// Address that we will bind our listening socket to
 	int addrlen = sizeof(addr);	// length of the address (required for accept call
-	addr.sin_addr.s_addr = inet_addr("192.168.0.108");		// Address = localhost (this pc)
+	addr.sin_addr.s_addr = inet_addr("192.168.0.103");		// Address = localhost (this pc)
 	addr.sin_port = htons(1111);		// Port
 	addr.sin_family = AF_INET;		// IPv4 socket
 
@@ -550,7 +550,7 @@ int wmain(int argc, wchar_t* argv[])
 			//  The buffer is going to contain "TargetDuration" seconds worth of PCM data.  That means 
 			//  we're going to have TargetDuration*samples/second frames multiplied by the frame size.
 			//
-			size_t captureBufferSize = capturer->SamplesPerSecond() * TargetDurationInSec * capturer->FrameSize();
+			size_t captureBufferSize = (int)capturer->SamplesPerSecond() * 0.1 * capturer->FrameSize();
 			captureBuffer = new (std::nothrow) BYTE[captureBufferSize];
 			captureBuffer1 = new (std::nothrow) BYTE[captureBufferSize];
 
@@ -563,7 +563,7 @@ int wmain(int argc, wchar_t* argv[])
 			if (capturer->Begin())
 			{
 				//printf("Begin successful\n");
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < 999; i++)
 				{
 					if (i % 2 == 0) {
 						if (capturer->Start(captureBuffer, captureBufferSize))
