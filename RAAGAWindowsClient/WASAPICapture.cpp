@@ -433,24 +433,44 @@ void SaveWaveData(BYTE *CaptureBuffer, size_t BufferSize, const WAVEFORMATEX *Wa
 	}
 }
 
-
+// Not used in the present code
 void writeFileThread(BYTE ** cbuffer, size_t bytesCaptured, WAVEFORMATEX * mixFormat)
 {
 	SaveWaveData(*cbuffer, bytesCaptured, mixFormat);
 }
 
-char sendBuffer[4800];
-SOCKET conn;
+
+char sendBuffer[4800];		// Buffer to send data to server
+SOCKET conn;				// Socket holding the server address
+
+/*
+Function Name: sendDataToServer
+Input: 
+		connection is the SOCKET address where data to be sent, sBuffer is the pointer to buffer holding data
+		and len the size of the data to be written
+Output: 
+		Writes data to server
+Logic:
+		Uses send command of WINSOCK API
+Example Call:
+		sendDATATOServer
+*/
 void sendDataToServer(SOCKET * connection, char ** sBuffer, int len)
 {
 	send(*connection, *sBuffer, len, NULL);
 }
-//
-//  The core of the sample.
-//
-//  Parse the command line, interpret the input parameters, pick an audio device then capture data from that device.
-//  When done, write the data to a file.
-//
+
+/*
+Function Name: wmain
+Input:
+		argc is the command line arguments length, argv is pointer to command line argument strings
+Output:
+		Parses the command line data, intialized sockets, connects to server, gets audio buffer data, sends it to server repeatedly
+Logic:
+		Uses various WINDOWS and WINSOCK APIs and other helper functions
+Example Call:
+		Not callable
+*/
 int wmain(int argc, wchar_t* argv[])
 {
 	int result = 0;
@@ -550,8 +570,8 @@ int wmain(int argc, wchar_t* argv[])
 			//  The buffer is going to contain "TargetDuration" seconds worth of PCM data.  That means 
 			//  we're going to have TargetDuration*samples/second frames multiplied by the frame size.
 			//
-			size_t captureBufferSize = (int)capturer->SamplesPerSecond() * 0.1 * capturer->FrameSize();
-			captureBuffer = new (std::nothrow) BYTE[captureBufferSize];
+			size_t captureBufferSize = (int)capturer->SamplesPerSecond() * 0.1 * capturer->FrameSize();		// Capture data for 1 second
+			captureBuffer = new (std::nothrow) BYTE[captureBufferSize];			// Buffer to store received data
 			captureBuffer1 = new (std::nothrow) BYTE[captureBufferSize];
 
 			if (captureBuffer == NULL)
@@ -560,9 +580,11 @@ int wmain(int argc, wchar_t* argv[])
 				return -1;
 			}
 
+			// Start filling the audio buffer
 			if (capturer->Begin())
 			{
-				//printf("Begin successful\n");
+				// Start capturing the data by swapping two buffers, Whenever one buffer fills up, swap it with the other,
+				// create a thread and send the data to server
 				for (int i = 0; i < 999; i++)
 				{
 					if (i % 2 == 0) {
@@ -609,34 +631,6 @@ int wmain(int argc, wchar_t* argv[])
 				std::thread t1(sendDataToServer, &conn, (char **)&captureBuffer,(int) capturer->BytesCaptured());
 				t1.join();
 
-
-				/*
-				if (capturer->Start(captureBuffer1, captureBufferSize))
-				{
-					//auto end = std::chrono::high_resolution_clock::now();
-					//std::cout << "end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch()).count() << std::endl;
-					//auto start = std::chrono::high_resolution_clock::now();
-					//std::cout << "Capture start time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
-					std::thread t1(writeFileThread, &captureBuffer, capturer->BytesCaptured(), capturer->MixFormat());
-					t1.join();
-					do
-					{
-						//printf(".");
-						Sleep(1);
-					} while (!capturer->hasCaptured());
-					//start = std::chrono::high_resolution_clock::now();
-					//std::cout << "Capture end time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count() << std::endl;
-					printf("\n");
-
-					capturer->Stop();
-
-					//
-					//  We've now captured our wave data.  Now write it out in a wave file.
-					//
-					//SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
-					SaveWaveData(captureBuffer1, capturer->BytesCaptured(), capturer->MixFormat());
-				}
-				*/
 				//
 				//  Now shut down the capturer and release it we're done.
 				//
